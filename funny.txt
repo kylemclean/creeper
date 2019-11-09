@@ -1,0 +1,13 @@
+-Points
+Points go up when in creepers sight
+Points go up faster when closer to creepers
+Points go up faster when creeper is faster
+
+- Creeper detection is random but chances increase relative to your distance to the creeper
+
+-Bruh speed is proportional to average mouse speed
+
+-Add way to kill creeper
+-Creeper splits on death
+-Background graphics
+-Add Herobrine
