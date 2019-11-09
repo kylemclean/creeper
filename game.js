@@ -1,12 +1,5 @@
 'use strict';
 
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-
-function dist(x0, y0, x1, y1) {
-    return ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** (1/2);
-}
-
 class Bruh {
     constructor() {
         this.x = 0;
@@ -32,7 +25,8 @@ class Creeper {
     constructor(x, y) {
         this.x = x;
         this.y = y;
-        this.dx = x;
+        this.dx = 0;
+        this.dy = 0;
         this.followRadius = 600;
         this.angryRadius = 120;
         this.isAngry = false;
@@ -45,40 +39,42 @@ class Creeper {
         let centerX = this.x + Creeper.headLength / 2;
         let centerY = this.y + (Creeper.headLength + Creeper.bodyHeight + Creeper.feetHeight) / 2;
 
-        let distanceToBruh = dist(centerX, centerY, bruh.x, bruh.y);
+        if (bruh) {
+            let distanceToBruh = dist(centerX, centerY, bruh.x, bruh.y);
 
-        if (distanceToBruh <= this.followRadius) {
-            this.isFollowing = true;
-        } else {
-            if (this.isFollowing) {
-                // Set wandering velocity
-                let direction = Math.random() * 2 * Math.PI;
-                let speed = this.speed / 10;
-                this.dx = Math.cos(direction) * speed;
-                this.dy = Math.sin(direction) * speed;
+            if (distanceToBruh <= this.followRadius) {
+                this.isFollowing = true;
+            } else {
+                if (this.isFollowing) {
+                    // Set wandering velocity
+                    let direction = Math.random() * 2 * Math.PI;
+                    let speed = this.speed / 10;
+                    this.dx = Math.cos(direction) * speed;
+                    this.dy = Math.sin(direction) * speed;
+                }
+                this.isFollowing = false;
             }
-            this.isFollowing = false;
-        }
 
-        // Follow player
-        if (this.isFollowing) {
-            this.dx = bruh.x - centerX;
-            this.dy = bruh.y - centerY;
-            let length = dist(bruh.x, bruh.y, centerX, centerY);
-            this.dx *= this.speed / length;
-            this.dy *= this.speed / length;   
+            // Follow player
+            if (this.isFollowing) {
+                this.dx = bruh.x - centerX;
+                this.dy = bruh.y - centerY;
+                let length = dist(bruh.x, bruh.y, centerX, centerY);
+                this.dx *= this.speed / length;
+                this.dy *= this.speed / length;
+            }
+
+            // Update isAngry and angryAmount
+            this.isAngry = distanceToBruh <= this.angryRadius;
+            if (this.isAngry) {
+                this.angryAmount = Math.min(1.0, this.angryAmount + delta);
+            } else {
+                this.angryAmount = Math.max(0.0, this.angryAmount - delta);
+            }
         }
 
         this.x += this.dx * delta;
         this.y += this.dy * delta;
-
-        // Update isAngry and angryAmount
-        this.isAngry = distanceToBruh <= this.angryRadius;
-        if (this.isAngry) {
-            this.angryAmount = Math.min(1.0, this.angryAmount + delta);
-        } else {
-            this.angryAmount = Math.max(0.0, this.angryAmount - delta);
-        }
 
         this.speed += 10 * delta;
         this.followRadius += 2 * delta;
@@ -98,7 +94,7 @@ class Creeper {
         // Draw creeper body
         ctx.fillRect(x, y, Creeper.headLength, Creeper.headLength);
         ctx.fillRect(x + Creeper.headLength / 2 - Creeper.bodyWidth / 2, y + Creeper.headLength,
-                     Creeper.bodyWidth, Creeper.bodyHeight);
+            Creeper.bodyWidth, Creeper.bodyHeight);
         ctx.fillRect(x, y + Creeper.headLength + Creeper.bodyHeight, Creeper.feetWidth, Creeper.feetHeight);
 
         // Render face
@@ -135,15 +131,38 @@ Creeper.face = [
     [0, 0, 1, 0, 0, 1, 0, 0],
 ];
 
-const bruh = new Bruh();
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let gameStarted = false;
+let bruh;
 const creepers = [];
-creepers.push(new Creeper(100, 100));
+
+function dist(x0, y0, x1, y1) {
+    return ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** (1 / 2);
+}
+
 
 canvas.addEventListener('mousemove', ev => {
-    bruh.targetX = ev.clientX;
-    bruh.targetY = ev.clientY;
+    if (bruh) {
+        bruh.targetX = ev.clientX;
+        bruh.targetY = ev.clientY;
+    }
 });
 
+canvas.addEventListener('mousedown', ev => {
+    if (!gameStarted) {
+        startGame();
+    }
+})
+
+
+function startGame() {
+    gameStarted = true;
+    bruh = new Bruh();
+    creepers.length = 0;
+    creepers.push(new Creeper(canvas.width / 3, 2 * canvas.height / 3));
+}
 
 function render() {
     canvas.width = window.innerWidth;
@@ -161,16 +180,27 @@ function render() {
     ctx.fillStyle = 'rgba(' + r + ', 0, 0, 1.0)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    bruh.render();
+    if (bruh)
+        bruh.render();
 
     for (let creeper of creepers) {
         creeper.render();
     }
-    
+
+    // Draw title screen
+    if (!gameStarted) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 64px serif';
+        ctx.fillText('CREEPER', canvas.width / 2, 2 * canvas.height / 5);
+        ctx.font = '24px serif';
+        ctx.fillText('click to begin', canvas.width / 2, 3 * canvas.height / 5);
+    }
 }
 
 function update(delta) {
-    bruh.update(delta);
+    if (bruh)
+        bruh.update(delta);
 
     for (let creeper of creepers) {
         creeper.update(delta);
@@ -182,11 +212,11 @@ let now = Date.now() / 1000.0;
 let lastRenderTime = now;
 
 function loop() {
-  now = Date.now() / 1000.0;
-  let delta = Math.min(1, now - lastRenderTime);
-  update(delta);
-  render();
-  lastRenderTime = now;
+    now = Date.now() / 1000.0;
+    let delta = Math.min(1, now - lastRenderTime);
+    update(delta);
+    render();
+    lastRenderTime = now;
 }
 
 setInterval(loop, 0);
